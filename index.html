@@ -21,16 +21,18 @@
             background: rgba(255,255,255,0.1); color: white; cursor: pointer;
             border-radius: 30px; font-size: 18px; margin-top: 25px; transition: 0.3s;
         }
+        
+        /* The specific style for the moving button */
+        #run-away-btn {
+            position: relative;
+            transition: all 0.2s ease-out;
+        }
+
         .choice-btn:hover { background: #ff1a1a; border-color: #ff1a1a; box-shadow: 0 0 25px #ff1a1a; }
 
         .sticker { 
-            position: fixed; 
-            width: 70px; 
-            height: 70px; 
-            z-index: 500; 
-            opacity: 0; 
-            pointer-events: none;
-            transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.8s; 
+            position: fixed; width: 70px; height: 70px; z-index: 500; opacity: 0; 
+            pointer-events: none; transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.8s; 
         }
 
         #photo-reveal {
@@ -47,7 +49,8 @@
         <p style="opacity: 0.7; font-style: italic;">(Are you still angry with me?)</p>
         <div style="display: flex; gap: 15px;">
             <button class="choice-btn" onclick="startExperience()">No...</button>
-            <button class="choice-btn" onclick="startExperience()">A little</button>
+            <!-- The button that runs away -->
+            <button id="run-away-btn" class="choice-btn" onmouseover="moveButton()" ontouchstart="moveButton()">A little</button>
         </div>
     </div>
 
@@ -65,10 +68,8 @@
         const pCtx = pCanvas.getContext('2d', { willReadFrequently: true });
         const bgMusic = document.getElementById('bgMusic');
 
-        const themeColor = '#ff1a1a';
         const sequence = ["I AM", "REALLY", "SORRY", "SAPANI", "❤"];
         const stickerFiles = ["Rose.svg", "beg.svg", "bouquet.svg", "heart.svg"];
-        
         const rainRose = new Image(); rainRose.src = 'Rose.svg';
         const rainHeart = new Image(); rainHeart.src = 'heart.svg';
 
@@ -76,6 +77,17 @@
         let particles = [];
         const POOL_SIZE = 8500;
         let drops;
+
+        // Button escape logic
+        function moveButton() {
+            const btn = document.getElementById('run-away-btn');
+            const x = Math.random() * (window.innerWidth - btn.offsetWidth - 50);
+            const y = Math.random() * (window.innerHeight - btn.offsetHeight - 50);
+            
+            btn.style.position = 'fixed';
+            btn.style.left = x + 'px';
+            btn.style.top = y + 'px';
+        }
 
         function resize() {
             mCanvas.width = pCanvas.width = window.innerWidth;
@@ -90,10 +102,9 @@
             mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
             drops.forEach((y, i) => {
                 const img = (i % 2 === 0) ? rainRose : rainHeart;
-                const size = 18;
                 if (img.complete) {
                     mCtx.globalAlpha = 0.5;
-                    mCtx.drawImage(img, i * 22, y * 22, size, size);
+                    mCtx.drawImage(img, i * 22, y * 22, 18, 18);
                     mCtx.globalAlpha = 1.0;
                 }
                 if (y * 22 > mCanvas.height && Math.random() > 0.98) drops[i] = 0;
@@ -117,7 +128,6 @@
                 } else if (this.opacity > 0) { 
                     this.opacity -= 0.03; 
                     this.vy -= 0.15;
-                    this.vx += (Math.random() - 0.5) * 0.2;
                 }
                 this.vx *= 0.86; this.vy *= 0.86;
                 this.x += this.vx; this.y += this.vy;
@@ -125,7 +135,7 @@
             draw() {
                 if (this.opacity <= 0) return;
                 pCtx.globalAlpha = this.opacity;
-                pCtx.fillStyle = themeColor;
+                pCtx.fillStyle = '#ff1a1a';
                 pCtx.beginPath(); pCtx.arc(this.x, this.y, 2.6, 0, Math.PI * 2); pCtx.fill();
             }
         }
@@ -133,31 +143,20 @@
         for(let i=0; i<POOL_SIZE; i++) particles.push(new Particle());
 
         function scatterStickers() {
-            // Intense scatter: 25 stickers across the screen
             for (let i = 0; i < 25; i++) {
                 setTimeout(() => {
                     const img = document.createElement('img');
                     img.src = stickerFiles[Math.floor(Math.random() * stickerFiles.length)];
                     img.className = 'sticker';
-                    
-                    // Start from random points around the center
-                    const startX = window.innerWidth / 2 + (Math.random() - 0.5) * 100;
-                    const startY = window.innerHeight / 2 + (Math.random() - 0.5) * 100;
-                    img.style.left = startX + 'px';
-                    img.style.top = startY + 'px';
-                    
+                    img.style.left = window.innerWidth / 2 + 'px';
+                    img.style.top = window.innerHeight / 2 + 'px';
                     document.body.appendChild(img);
-                    
                     requestAnimationFrame(() => {
                         const moveX = (Math.random() - 0.5) * window.innerWidth * 0.8;
                         const moveY = (Math.random() - 0.5) * window.innerHeight * 0.8;
-                        const rotation = (Math.random() - 0.5) * 720; // Multiple spins
-                        
                         img.style.opacity = '1';
-                        img.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${rotation}deg) scale(${0.8 + Math.random()})`;
+                        img.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${(Math.random()-0.5)*720}deg) scale(${0.8 + Math.random()})`;
                     });
-                    
-                    // Fade out and remove
                     setTimeout(() => {
                         img.style.opacity = '0';
                         setTimeout(() => img.remove(), 1000);
@@ -188,14 +187,8 @@
 
         function cycle() {
             setWord(sequence[seqIndex]);
-            
-            // Trigger intense scatter during and after the heart
-            if (sequence[seqIndex] === "❤") {
-                scatterStickers();
-            }
-            
+            if (sequence[seqIndex] === "❤") scatterStickers();
             if (seqIndex === sequence.length - 1) {
-                // Final reveal logic
                 setTimeout(() => { 
                     const pr = document.getElementById('photo-reveal');
                     pr.style.display = 'flex'; 
@@ -224,3 +217,4 @@
     </script>
 </body>
 </html>
+ 
