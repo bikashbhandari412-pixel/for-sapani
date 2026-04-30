@@ -20,17 +20,24 @@
             padding: 14px 40px; border: 1px solid rgba(255,255,255,0.3);
             background: rgba(255,255,255,0.1); color: white; cursor: pointer;
             border-radius: 30px; font-size: 18px; margin-top: 25px; transition: 0.3s;
-            box-shadow: 0 0 10px rgba(255,255,255,0.1);
         }
         .choice-btn:hover { background: #ff1a1a; border-color: #ff1a1a; box-shadow: 0 0 25px #ff1a1a; }
 
-        .sticker { position: fixed; width: 60px; height: 60px; z-index: 500; opacity: 0; transition: transform 0.8s ease-out, opacity 0.8s; }
+        .sticker { 
+            position: fixed; 
+            width: 70px; 
+            height: 70px; 
+            z-index: 500; 
+            opacity: 0; 
+            pointer-events: none;
+            transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.8s; 
+        }
 
         #photo-reveal {
             position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.9); z-index: 4000; opacity: 0; transition: opacity 2s;
+            background: rgba(0,0,0,0.92); z-index: 4000; opacity: 0; transition: opacity 2.5s;
         }
-        #photo-reveal img { max-width: 85%; max-height: 80%; border: 4px solid white; border-radius: 10px; box-shadow: 0 0 50px rgba(255,0,0,0.3); }
+        #photo-reveal img { max-width: 85%; max-height: 80%; border: 3px solid rgba(255,255,255,0.8); border-radius: 15px; box-shadow: 0 0 60px rgba(255,0,0,0.4); }
     </style>
 </head>
 <body>
@@ -60,9 +67,8 @@
 
         const themeColor = '#ff1a1a';
         const sequence = ["I AM", "REALLY", "SORRY", "SAPANI", "❤"];
-        const stickers = ["Rose.svg", "beg.svg", "bouquet.svg", "heart.svg"];
+        const stickerFiles = ["Rose.svg", "beg.svg", "bouquet.svg", "heart.svg"];
         
-        // Pre-load Rain Assets
         const rainRose = new Image(); rainRose.src = 'Rose.svg';
         const rainHeart = new Image(); rainHeart.src = 'heart.svg';
 
@@ -74,27 +80,23 @@
         function resize() {
             mCanvas.width = pCanvas.width = window.innerWidth;
             mCanvas.height = pCanvas.height = window.innerHeight;
-            drops = Array(Math.floor(mCanvas.width / 20)).fill(1);
+            drops = Array(Math.floor(mCanvas.width / 22)).fill(1);
         }
         window.onresize = resize;
         resize();
 
-        // --- NEW ROSE & HEART RAIN ---
         function drawMatrix() {
             mCtx.fillStyle = 'rgba(0, 0, 0, 0.15)';
             mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
-            
             drops.forEach((y, i) => {
                 const img = (i % 2 === 0) ? rainRose : rainHeart;
                 const size = 18;
-                
                 if (img.complete) {
-                    mCtx.globalAlpha = 0.6;
-                    mCtx.drawImage(img, i * 20, y * 20, size, size);
+                    mCtx.globalAlpha = 0.5;
+                    mCtx.drawImage(img, i * 22, y * 22, size, size);
                     mCtx.globalAlpha = 1.0;
                 }
-
-                if (y * 20 > mCanvas.height && Math.random() > 0.98) drops[i] = 0;
+                if (y * 22 > mCanvas.height && Math.random() > 0.98) drops[i] = 0;
                 drops[i] += 0.3;
             });
         }
@@ -112,12 +114,10 @@
                     this.vx += (this.destX - this.x) * 0.08;
                     this.vy += (this.destY - this.y) * 0.08;
                     if (this.opacity < 1) this.opacity += 0.05;
-                } else {
-                    if (this.opacity > 0) { 
-                        this.opacity -= 0.03; 
-                        this.vy -= 0.15; // Upward drift like smoke
-                        this.vx += (Math.random() - 0.5) * 0.2;
-                    }
+                } else if (this.opacity > 0) { 
+                    this.opacity -= 0.03; 
+                    this.vy -= 0.15;
+                    this.vx += (Math.random() - 0.5) * 0.2;
                 }
                 this.vx *= 0.86; this.vy *= 0.86;
                 this.x += this.vx; this.y += this.vy;
@@ -126,29 +126,43 @@
                 if (this.opacity <= 0) return;
                 pCtx.globalAlpha = this.opacity;
                 pCtx.fillStyle = themeColor;
-                pCtx.shadowBlur = 4;
-                pCtx.shadowColor = themeColor;
                 pCtx.beginPath(); pCtx.arc(this.x, this.y, 2.6, 0, Math.PI * 2); pCtx.fill();
-                pCtx.shadowBlur = 0;
             }
         }
 
         for(let i=0; i<POOL_SIZE; i++) particles.push(new Particle());
 
-        function spawnStickers() {
-            for (let i = 0; i < 10; i++) {
+        function scatterStickers() {
+            // Intense scatter: 25 stickers across the screen
+            for (let i = 0; i < 25; i++) {
                 setTimeout(() => {
                     const img = document.createElement('img');
-                    img.src = stickers[Math.floor(Math.random() * stickers.length)];
+                    img.src = stickerFiles[Math.floor(Math.random() * stickerFiles.length)];
                     img.className = 'sticker';
-                    img.style.left = '50%'; img.style.top = '50%';
+                    
+                    // Start from random points around the center
+                    const startX = window.innerWidth / 2 + (Math.random() - 0.5) * 100;
+                    const startY = window.innerHeight / 2 + (Math.random() - 0.5) * 100;
+                    img.style.left = startX + 'px';
+                    img.style.top = startY + 'px';
+                    
                     document.body.appendChild(img);
+                    
                     requestAnimationFrame(() => {
+                        const moveX = (Math.random() - 0.5) * window.innerWidth * 0.8;
+                        const moveY = (Math.random() - 0.5) * window.innerHeight * 0.8;
+                        const rotation = (Math.random() - 0.5) * 720; // Multiple spins
+                        
                         img.style.opacity = '1';
-                        img.style.transform = `translate(${(Math.random()-0.5)*500}px, ${(Math.random()-0.5)*500}px) rotate(${(Math.random()-0.5)*120}deg)`;
+                        img.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${rotation}deg) scale(${0.8 + Math.random()})`;
                     });
-                    setTimeout(() => img.remove(), 3000);
-                }, i * 150);
+                    
+                    // Fade out and remove
+                    setTimeout(() => {
+                        img.style.opacity = '0';
+                        setTimeout(() => img.remove(), 1000);
+                    }, 2500);
+                }, i * 80);
             }
         }
 
@@ -158,7 +172,6 @@
             pCtx.font = `bold ${Math.min(pCanvas.width/4.5, size)}px Arial`;
             pCtx.textAlign = 'center'; pCtx.textBaseline = 'middle';
             pCtx.fillText(text, pCanvas.width/2, pCanvas.height/2);
-            
             const data = pCtx.getImageData(0,0,pCanvas.width, pCanvas.height).data;
             const coords = [];
             for(let y=0; y<pCanvas.height; y += 6) {
@@ -175,18 +188,23 @@
 
         function cycle() {
             setWord(sequence[seqIndex]);
-            if (sequence[seqIndex] === "❤") spawnStickers();
+            
+            // Trigger intense scatter during and after the heart
+            if (sequence[seqIndex] === "❤") {
+                scatterStickers();
+            }
             
             if (seqIndex === sequence.length - 1) {
+                // Final reveal logic
                 setTimeout(() => { 
                     const pr = document.getElementById('photo-reveal');
                     pr.style.display = 'flex'; 
                     setTimeout(() => pr.style.opacity = '1', 100);
-                }, 4500);
+                }, 5000);
                 return;
             }
             seqIndex++;
-            setTimeout(cycle, 3800);
+            setTimeout(cycle, 4000);
         }
 
         function startExperience() {
