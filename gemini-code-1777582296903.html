@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>For Sapani 🕊️</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Arial', sans-serif; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #matrix-canvas { z-index: 1; opacity: 0.5; }
+        #particle-canvas { z-index: 2; pointer-events: none; }
+        
+        #loading-screen {
+            position: fixed; inset: 0; background: black; z-index: 3000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; transition: opacity 1.5s; text-align: center; padding: 20px;
+        }
+        .question-box { max-width: 500px; }
+        .btn-container { margin-top: 30px; display: flex; gap: 20px; justify-content: center; }
+        .choice-btn {
+            padding: 12px 35px; border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1); color: white; cursor: pointer;
+            border-radius: 30px; font-size: 16px; transition: all 0.3s;
+        }
+        .choice-btn:hover { background: #ff1a1a; color: white; border-color: #ff1a1a; box-shadow: 0 0 25px #ff1a1a; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="question-box">
+            <h2 style="font-weight: 300; line-height: 1.5;">अझै रिसाकी छौ ?<br><span style="font-size: 18px; opacity: 0.8;">(Are you still angry with me?)</span></h2>
+            <div class="btn-container">
+                <button class="choice-btn" onclick="startExperience()">No...</button>
+                <button class="choice-btn" onclick="startExperience()">A little</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="matrix-canvas"></canvas>
+    <canvas id="particle-canvas"></canvas>
+    
+    <audio id="bgMusic" loop>
+        <source src="sorry.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const mCanvas = document.getElementById('matrix-canvas');
+        const pCanvas = document.getElementById('particle-canvas');
+        const mCtx = mCanvas.getContext('2d');
+        const pCtx = pCanvas.getContext('2d', { willReadFrequently: true });
+        const bgMusic = document.getElementById('bgMusic');
+
+        const GRID_SIZE = 6; 
+        const themeColor = '#ff1a1a'; 
+        const matrixChars = "SORRY SAPANI I AM REALLY SORRY";
+        const sequence = ["I AM", "REALLY", "SORRY", "SAPANI", "❤"];
+        let seqIndex = 0;
+        let particles = [];
+        const POOL_SIZE = 8000; 
+
+        function resize() {
+            mCanvas.width = pCanvas.width = window.innerWidth;
+            mCanvas.height = pCanvas.height = window.innerHeight;
+            drops = Array(Math.floor(mCanvas.width / 12)).fill(1);
+        }
+        window.onresize = resize;
+        let drops;
+        resize();
+
+        function drawMatrix() {
+            mCtx.fillStyle = 'rgba(0, 0, 0, 0.12)'; 
+            mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+            mCtx.font = '14px monospace';
+            
+            drops.forEach((y, i) => {
+                const char = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+                mCtx.fillStyle = Math.random() > 0.98 ? '#fff' : themeColor;
+                mCtx.fillText(char, i * 12, y * 12);
+                if (y * 12 > mCanvas.height && Math.random() > 0.985) drops[i] = 0;
+                drops[i] += 0.4; 
+            });
+        }
+
+        class Particle {
+            constructor() {
+                this.init();
+            }
+            init() {
+                this.x = Math.random() * pCanvas.width;
+                this.y = Math.random() * pCanvas.height;
+                this.destX = this.x;
+                this.destY = this.y;
+                this.vx = 0;
+                this.vy = 0;
+                this.acc = 0.08; 
+                this.friction = 0.88; 
+                this.active = false; 
+                this.opacity = 0; // Start invisible
+            }
+            update() {
+                if (this.active) {
+                    this.vx += (this.destX - this.x) * this.acc;
+                    this.vy += (this.destY - this.y) * this.acc;
+                    // Gradually become visible as they fly in
+                    if (this.opacity < 1) this.opacity += 0.05;
+                } else {
+                    // Gradually disappear when word is over
+                    if (this.opacity > 0) {
+                        this.opacity -= 0.05;
+                        this.vy -= 0.1; // Slight upward drift as they fade
+                    } else {
+                        this.opacity = 0;
+                    }
+                }
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+            draw() {
+                if (this.opacity <= 0) return;
+                pCtx.globalAlpha = this.opacity;
+                pCtx.fillStyle = themeColor;
+                pCtx.shadowBlur = 5; 
+                pCtx.shadowColor = themeColor;
+                pCtx.beginPath();
+                pCtx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.globalAlpha = 1; 
+                pCtx.shadowBlur = 0;
+            }
+        }
+
+        for(let i=0; i<POOL_SIZE; i++) particles.push(new Particle());
+
+        function setWord(text) {
+            pCtx.clearRect(0,0,pCanvas.width, pCanvas.height);
+            let baseSize = text === "❤" ? 400 : 250;
+            const size = Math.min(pCanvas.width / (text.length > 5 ? 6 : 3.5), baseSize);
+            pCtx.font = `bold ${size}px Arial`;
+            pCtx.textAlign = 'center'; 
+            pCtx.textBaseline = 'middle';
+            pCtx.fillStyle = 'white';
+            pCtx.fillText(text, pCanvas.width/2, pCanvas.height/2);
+
+            const data = pCtx.getImageData(0,0,pCanvas.width, pCanvas.height).data;
+            const coords = [];
+            for(let y=0; y<pCanvas.height; y += GRID_SIZE) {
+                for(let x=0; x<pCanvas.width; x += GRID_SIZE) {
+                    if(data[(y*pCanvas.width+x)*4+3] > 128) coords.push({x,y});
+                }
+            }
+
+            particles.forEach(p => {
+                p.active = false;
+            });
+
+            for(let i=0; i<coords.length && i<particles.length; i++) {
+                // If particle was invisible, spawn it near the edge to "fly in"
+                if (particles[i].opacity <= 0) {
+                    particles[i].x = Math.random() > 0.5 ? 0 : pCanvas.width;
+                    particles[i].y = Math.random() * pCanvas.height;
+                }
+                particles[i].destX = coords[i].x;
+                particles[i].destY = coords[i].y;
+                particles[i].active = true;
+            }
+        }
+
+        function mainLoop() {
+            drawMatrix();
+            pCtx.clearRect(0,0,pCanvas.width, pCanvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(mainLoop);
+        }
+
+        function cycle() {
+            setWord(sequence[seqIndex]);
+            seqIndex = (seqIndex + 1) % sequence.length;
+            setTimeout(cycle, 3500); 
+        }
+
+        function startExperience() {
+            bgMusic.play().catch(e => console.log("Audio needed user click"));
+            document.getElementById('loading-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loading-screen').remove();
+                mainLoop();
+                cycle();
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
